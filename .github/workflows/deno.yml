@@ -1,10 +1,5 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will install Deno then run `deno lint` and `deno test`.
-# For more information see: https://github.com/denoland/setup-deno
+# Builds the Flue agents with the Node toolchain, then boots the bundled
+# server under Deno and checks /health — the same way Deno Deploy runs it.
 
 name: Deno
 
@@ -18,25 +13,53 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  build-and-boot:
     runs-on: ubuntu-latest
 
     steps:
       - name: Setup repo
         uses: actions/checkout@v4
 
-      - name: Setup Deno
-        # uses: denoland/setup-deno@v1
-        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          deno-version: v1.x
+          node-version: 22
+          cache: npm
 
-      # Uncomment this step to verify the use of 'deno fmt' on each commit.
-      # - name: Verify formatting
-      #   run: deno fmt --check
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
-      - name: Run linter
-        run: deno lint
+      - name: Install
+        run: npm ci --include=dev
 
-      - name: Run tests
-        run: deno test -A
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Boot under Deno and check /health
+        env:
+          PORT: "8000"
+          FLUE_SECRET: ci-only-secret
+        run: |
+          deno run -A dist/server.mjs > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then echo; exit 0; fi
+            sleep 1
+          done
+          echo "server did not become healthy"; cat server.log; exit 1
+
+      - name: Reject requests without the secret
+        env:
+          PORT: "8001"
+          FLUE_SECRET: ci-only-secret
+        run: |
+          deno run -A dist/server.mjs > server2.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8001/health >/dev/null 2>&1 && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8001/agents/translate/ci \
+            -H 'content-type: application/json' -d '{"text":"hi"}')
+          echo "status without secret: $code"
+          test "$code" != "200"

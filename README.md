@@ -49,6 +49,29 @@ Render runs `npm ci --include=dev && npm run build` (which calls `flue build --t
 >
 > A follow-up template that pairs Flue with a `pserv` and a small auth front door is on the roadmap.
 
+## Deploy to Deno Deploy
+
+The Node build output runs unchanged on Deno 2.
+
+| Setting | Value |
+| --- | --- |
+| Install command | `npm ci --include=dev` |
+| Build command | `npm run build` |
+| Entrypoint | `dist/server.mjs` |
+| Env vars | `ANTHROPIC_API_KEY`, `FLUE_SECRET`, optional `MODEL_ID` |
+
+Local check: `npm run build && deno run -A dist/server.mjs`, then `curl localhost:3583/health`.
+
+## Auth
+
+Every agent requires the JSON body to include `"secret"` matching the `FLUE_SECRET` env var. Requests without it, with the wrong value, or when `FLUE_SECRET` is unset are rejected before the model is called (generic 500, no details). Flue's handler context does not expose headers, so the secret travels in the payload.
+
+```bash
+curl -X POST https://<host>/agents/translate/demo \
+  -H 'content-type: application/json' \
+  -d '{"secret":"<FLUE_SECRET>","text":"Hello","language":"Spanish"}'
+```
+
 ## Run locally
 
 ### Prerequisites

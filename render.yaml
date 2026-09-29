@@ -15,3 +15,5 @@ services:
         value: anthropic/claude-sonnet-4-6
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: FLUE_SECRET
+        generateValue: true
