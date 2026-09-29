@@ -62,6 +62,19 @@ The Node build output runs unchanged on Deno 2.
 
 Local check: `npm run build && deno run -A dist/server.mjs`, then `curl localhost:3583/health`.
 
+## Choosing the model / your own LLM gateway
+
+Set `MODEL_ID` to any `provider/model-id` Flue knows (Anthropic, OpenAI, DeepSeek, OpenRouter, Groq, xAI, Mistral, Kimi, Fireworks, Cloudflare Workers AI, …) plus that provider's key, e.g. `MODEL_ID=deepseek/deepseek-v4-pro` + `DEEPSEEK_API_KEY`.
+
+To send everything through your own gateway instead, also set:
+
+| Env | Meaning |
+| --- | --- |
+| `LLM_BASE_URL` | Gateway base URL, e.g. `https://llm.example.com/v1` |
+| `LLM_API_KEY` | Key sent to the gateway as `Authorization: Bearer …` |
+
+The gateway receives the provider's native API (for `deepseek/*` and most OpenAI-style providers: streaming `POST <base>/chat/completions`) with the model id from `MODEL_ID`, so map that id to whatever backend you meter.
+
 ## Auth
 
 Every agent requires the JSON body to include `"secret"` matching the `FLUE_SECRET` env var. Requests without it, with the wrong value, or when `FLUE_SECRET` is unset are rejected before the model is called (generic 500, no details). Flue's handler context does not expose headers, so the secret travels in the payload.
