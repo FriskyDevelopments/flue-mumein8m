@@ -1,6 +1,7 @@
 import type { FlueContext } from '@flue/sdk/client';
 import * as v from 'valibot';
 import { requireSecret } from '../lib/auth.ts';
+import { modelInit } from '../lib/model.ts';
 
 export const triggers = { webhook: true };
 
@@ -14,7 +15,7 @@ export default async function ({ init, payload, env }: FlueContext) {
 	requireSecret(payload, env);
 	const { text, language } = v.parse(Payload, payload ?? {});
 
-	const agent = await init({ model: env.MODEL_ID ?? 'anthropic/claude-sonnet-4-6' });
+	const agent = await init(modelInit(env));
 	const session = await agent.session();
 
 	return await session.prompt(`Translate this to ${language}: "${text}"`, {
