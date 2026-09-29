@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+services:
+  - type: web
+    name: flue-agents
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MODEL_ID
+        value: anthropic/claude-sonnet-4-6
+      - key: ANTHROPIC_API_KEY
+        sync: false
